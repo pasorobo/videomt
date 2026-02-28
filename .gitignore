@@ -11,3 +11,11 @@ booster_jobs/
 jobs/*
 
 wandb/*
+
+# Virtual environment
+.venv/
+
+# Demo data
+demo_input/
+demo_output/
+weights/
