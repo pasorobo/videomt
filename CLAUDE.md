@@ -70,15 +70,27 @@ docs/                           # Project website (HTML/CSS/JS)
 
 ## Environment Setup
 
+**Python仮想環境（.venv）を使用:**
 ```bash
-conda create -n videomt python==3.12.3
-conda activate videomt
+cd /mnt/d/Program/SAM/videomt
+source .venv/bin/activate
+# または直接実行: .venv/bin/python <script.py>
+```
+
+**IMPORTANT:** スクリプト実行時は必ず `.venv/bin/python` を使用すること。conda環境は使わない。
+
+<details><summary>初回セットアップ（参考）</summary>
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
 pip install torch==2.7.0 torchvision==0.22.0 --index-url https://download.pytorch.org/whl/cu126
 python -m pip install --no-build-isolation 'git+https://github.com/facebookresearch/detectron2.git'
 pip install git+https://github.com/cocodataset/panopticapi.git
-python3 -m pip install -r requirements.txt
+pip install -r requirements.txt
 wandb login
 ```
+</details>
 
 **Key dependencies:** PyTorch 2.7, torchvision 0.22, detectron2, timm 1.0.20, transformers 4.56.1, wandb, fvcore, pycocotools, einops.
 
@@ -87,7 +99,7 @@ wandb login
 ### Evaluation
 
 ```bash
-python train_net_video.py \
+.venv/bin/python train_net_video.py \
   --num-gpus 1 \
   --config-file configs/<dataset>/videomt/<config>.yaml \
   --eval-only MODEL.WEIGHTS /path/to/weight.pth \
@@ -99,16 +111,55 @@ python train_net_video.py \
 
 ```bash
 # FPS
-python benchmark.py --task fps --config-file <config.yaml> --model-weights <weight.pth> --warmup-iters 100
+.venv/bin/python benchmark.py --task fps --config-file <config.yaml> --model-weights <weight.pth> --warmup-iters 100
 
 # GFLOPs (requires disabling fused attention)
 export TIMM_FUSED_ATTN=0
-python benchmark.py --task flops --config-file <config.yaml> --model-weights <weight.pth>
+.venv/bin/python benchmark.py --task flops --config-file <config.yaml> --model-weights <weight.pth>
 ```
 
-### Visualization
+### Visualization (video_demo.py)
 
-See `model_zoo/visualization.md` and `visualization/video_demo.py`.
+```bash
+cd /mnt/d/Program/SAM/videomt/visualization
+
+# 全フレーム推論 + 動画出力
+../.venv/bin/python video_demo.py \
+  --config-file ../configs/ytvis19/videomt/vit-large/videomt_online_ViTL.yaml \
+  --input "/mnt/d/Program/3DSG/data/warehouse/Camera_0030_001.mp4" \
+  --output ../demo_output_allframes \
+  --save-video --video-fps 30 \
+  --opts MODEL.WEIGHTS ../weights/yt_2019_vit_large_68.6.pth
+
+# 10フレーム間隔推論 + 動画出力 (30fps動画 → 0.3333秒間隔)
+../.venv/bin/python video_demo.py \
+  --config-file ../configs/ytvis19/videomt/vit-large/videomt_online_ViTL.yaml \
+  --input "/mnt/d/Program/3DSG/data/warehouse/Camera_0030_001.mp4" \
+  --output ../demo_output_10frames \
+  -i 0.3333 --save-video --video-fps 3 \
+  --opts MODEL.WEIGHTS ../weights/yt_2019_vit_large_68.6.pth
+
+# ディレクトリ入力（後方互換）
+../.venv/bin/python video_demo.py \
+  --config-file ../configs/ytvis19/videomt/vit-large/videomt_online_ViTL.yaml \
+  --input ../demo_input \
+  --output ../demo_output \
+  --opts MODEL.WEIGHTS ../weights/yt_2019_vit_large_68.6.pth
+```
+
+**video_demo.py 主要引数:**
+| 引数 | 型 | デフォルト | 説明 |
+|---|---|---|---|
+| `--input` | str | 必須 | 動画ファイル or フレームディレクトリ（自動判定） |
+| `--output` | str | `./demo_output` | 出力ディレクトリ |
+| `-i, --sample-interval` | float | None | サンプリング間隔（秒）。動画入力のみ |
+| `-n, --max-frames` | int | None | 最大フレーム数 |
+| `--save-video` | flag | False | MP4動画出力 |
+| `--no-save-frames` | flag | False | 個別フレーム保存を無効化 |
+| `--video-fps` | int | 10 | 出力動画FPS |
+| `--video-codec` | choices | h264 | `h264`（高圧縮）/ `mp4v`（高速） |
+
+See also `model_zoo/visualization.md`.
 
 ## Architecture & Key Concepts
 
